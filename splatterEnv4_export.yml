@@ -1,0 +1,363 @@
+name: splatterClient
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+  - conda-forge
+dependencies:
+  - pip
+  - alabaster=0.7.12
+  - appdirs=1.4.4
+  - arrow=1.2.3
+  - astroid=2.14.2
+ # - astropy=5.1
+  - atomicwrites=1.4.0
+  - attrs=22.1.0
+ # - autopep8=1.6.0
+  - babel=2.11.0
+  - backcall=0.2.0
+  - bcrypt=3.2.0
+  - beautifulsoup4=4.11.1
+  - binaryornot=0.4.4
+ # - black=22.6.0
+  - blas=1.0
+  - bleach=4.1.0
+  - blosc=1.21.3
+  - bottleneck=1.3.5
+  - brotli=1.0.9
+  - brotli-bin=1.0.9
+  - brotlipy=0.7.0
+  - bzip2=1.0.8
+  - ca-certificates=2023.12.12
+  - certifi=2023.11.17
+  - cffi=1.15.1
+  - cfitsio=3.470
+  - chardet=4.0.0
+  - charls=2.2.0
+  - click=8.0.4
+  - cloudpickle=2.0.0
+  - colorama=0.4.6
+  - comm=0.1.2
+  - cookiecutter=1.7.3
+  - cryptography=39.0.1
+ # - cuda=11.7.1
+ # - cuda-cccl=11.7.91
+ # - cuda-command-line-tools=11.7.1
+ # - cuda-compiler=11.7.1
+ # - cuda-cudart=11.7.99
+ # - cuda-cudart-dev=11.7.99
+ # - cuda-cuobjdump=11.7.91
+ # - cuda-cupti=11.7.101
+ # - cuda-cuxxfilt=11.7.91
+ # - cuda-documentation=12.1.55
+ # - cuda-libraries=11.7.1
+ # - cuda-libraries-dev=11.7.1
+ # - cuda-nsight-compute=12.1.0
+ # - cuda-nvcc=11.7.99
+ # - cuda-nvdisasm=12.1.55
+ # - cuda-nvml-dev=11.7.91
+ # - cuda-nvprune=11.7.91
+ # - cuda-nvrtc=11.7.99
+ # - cuda-nvrtc-dev=11.7.99
+ # - cuda-nvtx=11.7.91
+ # - cuda-runtime=11.7.1
+ # - cuda-sanitizer-api=12.1.55
+ # - cuda-toolkit=11.7.1
+ # - cuda-tools=11.7.1
+ # - cuda-visual-tools=11.7.1
+ # - cudatoolkit=11.8.0
+  - cycler=0.11.0
+  - cytoolz=0.12.0
+  - dask-core=2022.7.0
+  - debugpy=1.5.1
+  - decorator=5.1.1
+  - defusedxml=0.7.1
+  - diff-match-patch=20200713
+  - dill=0.3.6
+  - docstring-to-markdown=0.11
+  - docutils=0.18.1
+  - echo=0.5
+  - entrypoints=0.4
+  - et_xmlfile=1.1.0
+  - fast-histogram=0.9
+ # - flake8=6.0.0
+  - flit-core=3.6.0
+  - freetype=2.12.1
+  - freetype-py=2.2.0
+  - fsspec=2022.11.0
+  - giflib=5.2.1
+  - glib
+  - glue-core=1.2.4
+  - glue-vispy-viewers=1.0.5
+  - glueviz=1.2.4
+  - gst-plugins-base
+  - gstreamer
+  - h5py=3.7.0
+  - hdf5=1.10.6
+  - hsluv=5.0.3
+  - icu
+  - idna=3.4
+  - imagecodecs=2021.8.26
+  - imageio=2.26.0
+  - imagesize=1.4.1
+  - importlib_metadata=4.11.3
+  - importlib_resources=5.2.0
+  - inflection=0.5.1
+  - intervaltree=3.1.0
+  - ipykernel=6.19.2
+  - ipython_genutils=0.2.0
+  - isort=5.9.3
+  - jellyfish=0.9.0
+  - jinja2=3.1.2
+  - jinja2-time=0.2.0
+  - jpeg=9e
+  - jsonschema=4.17.3
+  - jupyter_client=7.4.9
+  - jupyter_core=5.2.0
+  - jupyterlab_pygments=0.1.2
+  - jxrlib=1.1
+  - keyring=23.4.0
+  - kiwisolver=1.4.4
+  - lazy-object-proxy=1.6.0
+  - lcms2=2.12
+  - lerc=3.0
+  - libaec=1.0.4
+  - libbrotlicommon=1.0.9
+  - libbrotlidec=1.0.9
+  - libbrotlienc=1.0.9
+  - libclang
+  - libcublas=11.10.3.66
+  - libcublas-dev=11.10.3.66
+  - libcufft=10.7.2.124
+  - libcufft-dev=10.7.2.124
+  - libcurand=10.3.2.56
+  - libcurand-dev=10.3.2.56
+  - libcusolver=11.4.0.1
+  - libcusolver-dev=11.4.0.1
+  - libcusparse=11.7.4.91
+  - libcusparse-dev=11.7.4.91
+  - libdeflate=1.17
+  - libffi
+  - libiconv=1.16
+  - libnpp=11.7.4.75
+  - libnpp-dev=11.7.4.75
+  - libnvjpeg=11.8.0.2
+  - libnvjpeg-dev=11.8.0.2
+  - libogg=1.3.5
+  #- libpng=1.6.39
+  - libsodium=1.0.18
+  - libspatialindex=1.9.3
+  #- libtiff=4.5.0
+  - libuv=1.44.2
+  - libvorbis=1.3.7
+  - libwebp=1.2.4
+  - libwebp-base=1.2.4
+  #- libxml2=2.9.14
+  #- libxslt=1.1.35
+  - libzopfli=1.0.3
+  - locket=1.0.0
+  - lxml=4.9.1
+  #- lz4-c=1.9.4
+  - matplotlib-base=3.7.0
+  - matplotlib-inline=0.1.6
+  - mccabe=0.7.0
+  - mistune=0.8.4
+  - mpl-scatter-density=0.7
+  - munkres=1.1.4
+  - mypy_extensions=0.4.3
+  - nbclient=0.5.13
+  - nbconvert=6.5.4
+  - nbformat=5.7.0
+  - nest-asyncio=1.5.6
+  - networkx=2.8.4
+  - nsight-compute=2023.1.0.15
+  - numexpr=2.8.4
+  - numpy-base=1.23.5
+  - numpydoc=1.5.0
+  - openjpeg=2.4.0
+  - openpyxl=3.0.10
+  - openssl=1.1.1w
+  - pandas=1.5.3
+  - pandocfilters=1.5.0
+  - paramiko=2.8.1
+  - parso=0.8.3
+  - partd=1.2.0
+  - pathspec=0.10.3
+  - pcre=8.45
+  - pexpect=4.8.0
+  - pickleshare=0.7.5
+  - pkgutil-resolve-name=1.3.10
+  - platformdirs=2.5.2
+  - plotly=5.9.0
+  - pluggy=1.0.0
+  - ply=3.11
+  - pooch=1.4.0
+  - poyo=0.5.0
+  - ptyprocess=0.7.0
+  - pure_eval=0.2.2
+  - pycodestyle=2.10.0
+  - pycparser=2.21
+  - pydocstyle=6.3.0
+  - pyerfa=2.0.0
+  - pyflakes=3.0.1
+ # - pylint=2.16.2
+ # - pylint-venv=2.3.0
+  - pyls-spyder=0.4.0
+  - pynacl=1.5.0
+  - pyopengl=3.1.1a1
+  - pyopenssl=23.0.0
+  - pyparsing=3.0.9
+  - pyqt
+  - pyqt5-sip
+ # - pyqtwebengine
+  - pyrsistent=0.18.0
+  - pysocks=1.7.1
+  - python=3.8.10
+  - python-dateutil=2.8.2
+  - python-fastjsonschema=2.16.2
+  - python-lsp-black=1.2.1
+  - python-lsp-jsonrpc=1.0.0
+  - python-lsp-server=1.7.1
+  - python-slugify=5.0.2
+  - pytoolconfig=1.2.5
+  - pytorch=1.13.1
+  - pytorch-cuda=11.7
+  - pytorch-mutex=1.0
+  - pywavelets=1.4.1
+ # - pywin32
+  - pyzmq=23.2.0
+  - qdarkstyle=3.0.2
+  - qstylizer
+  - qt-main
+ # - qt-webengine
+  - qtawesome
+  - qtconsole
+  - qtpy
+ # - qtwebkit
+  - rope=1.7.0
+  - rtree=1.0.1
+ # - scikit-image=0.19.3
+  - setuptools=65.6.3
+  - sip=6.6.2
+  - six=1.16.0
+  - snappy=1.1.9
+  - snowballstemmer=2.2.0
+  - sortedcontainers=2.4.0
+  - soupsieve=2.3.2.post1
+  - sphinx=5.0.2
+  - sphinxcontrib-applehelp=1.0.2
+  - sphinxcontrib-devhelp=1.0.2
+  - sphinxcontrib-htmlhelp=2.0.0
+  - sphinxcontrib-jsmath=1.0.1
+  - sphinxcontrib-qthelp=1.0.3
+  - sphinxcontrib-serializinghtml=1.1.5
+  - spyder=5.4.2
+  - spyder-kernels=2.4.2
+  - sqlite
+  - stack_data=0.2.0
+  - tenacity=8.0.1
+  - text-unidecode=1.3
+  - textdistance=4.2.1
+  - three-merge=0.1.1
+  - tifffile=2021.7.2
+  - tinycss2=1.2.1
+  #- tk=8.6.12
+  - toml=0.10.2
+  - tomli=2.0.1
+  - tomlkit=0.11.1
+  - toolz=0.12.0
+  - tornado=6.2
+  - ujson=5.4.0
+  - unidecode=1.2.0
+  - urllib3=1.26.14
+  - vispy=0.12.1
+  - watchdog=2.1.6
+  - webencodings=0.5.1
+  - whatthepatch=1.0.2
+  - wheel=0.38.4
+  - wrapt=1.14.1
+  - xlrd=2.0.1
+  - xz=5.2.10
+  - yaml=0.2.5
+  - yapf=0.31.0
+  - zeromq=4.3.4
+  - zfp=0.5.5
+  - zlib=1.2.13
+  - zstd=1.5.2
+  - pip:
+    - absl-py==1.4.0
+    - aiofiles==23.2.1
+    - annotated-types==0.6.0
+    - anyio==4.2.0
+    - asttokens==2.2.1
+    - cachetools==5.3.0
+    - charset-normalizer==3.1.0
+    - contourpy==1.0.7
+    - exceptiongroup==1.2.0
+    - executing==1.2.0
+    - fastapi==0.109.0
+    - fonttools==4.39.0
+    - gitdb==4.0.10
+    - gitpython==3.1.31
+    - google-auth==2.16.2
+    - google-auth-oauthlib==0.4.6
+    - grpcio==1.51.3
+    - h11==0.14.0
+    - httptools==0.6.1
+    - importlib-metadata==6.0.0
+    - importlib-resources==5.12.0
+    - imutils==0.5.4
+    - ipython==8.11.0
+    - jedi==0.18.2
+    - markdown
+    - markupsafe
+    - matplotlib==3.7.1
+    - numpy==1.24.2
+    - oauthlib==3.2.2
+    - onnx==1.15.0
+    - opencv-contrib-python==4.7.0.72
+    #- opencv-python==4.7.0.72
+    - packaging==23.0
+    - pillow==9.4.0
+    - pip==23.3.2
+    - progress==1.6
+    - prompt-toolkit==3.0.38
+    - protobuf==4.22.1
+    - pyasn1==0.4.8
+    - pyasn1-modules==0.2.8
+    - pydantic==2.6.0
+    - pydantic-core==2.16.1
+    - pygments==2.14.0
+    - python-dotenv==1.0.1
+    - python-multipart==0.0.6
+    - pytz==2022.7.1
+    - pyyaml==6.0
+    - requests==2.28.2
+    - requests-oauthlib==1.3.1
+    - rsa==4.9
+    - scipy==1.10.1
+   # - seaborn==0.12.2
+    - smmap==5.0.0
+    - sniffio==1.3.0
+    - stack-data==0.6.2
+    - starlette==0.35.1
+    - tensorboard==2.12.0
+    - tensorboard-data-server==0.7.0
+    - tensorboard-plugin-wit==1.8.1
+   # - tensorrt==8.5.2.2
+    - thop==0.1.1-2209072238
+    - torch==1.13.1
+    - torchaudio==0.13.1
+    - torchvision==0.14.1
+    - tqdm==4.65.0
+    - traitlets==5.9.0
+    - typing-extensions==4.9.0
+    - uvicorn==0.27.0.post1
+    - vidstab==1.7.4
+    - watchfiles==0.21.0
+    - wcwidth==0.2.6
+    - websockets==12.0
+    - werkzeug==2.2.3
+    - zipp==3.15.0
+prefix: C:\Users\Callum\Anaconda3\envs\splatterEnv4
+
