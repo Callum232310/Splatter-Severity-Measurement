@@ -61,22 +61,30 @@ To find the IP address that the client will connect to:
 
 ## Stream Video (Client Device)
 
-Once the container is running on the Jetson Orin Nano, open ```clientside2.py``` on the client device and edit the line:
+Once the container is running on the Jetson Orin Nano, switch to the client device.
+
+To ensure the system functions properly, make sure these are all installed in this order with the tested versions of each:
+
+ - Microsoft Visual Studio 2022 (from https://visualstudio.microsoft.com/vs/)
+ - ```pip install python==3.7.6``` 
+ - ```pip install opencv-contrib-python==4.7.0.72```
+ - ```pip install numpy==1.21.6```
+ - ```pip install websockets==11.0.3```
+
+
+Next, open ```clientside2.py``` on the client device and edit the line: 
 
 ```cap = cv2.VideoCapture(r'C:\Users\Callum\Downloads\splatter2023\splatter1.mp4')``` 
 
 either to a desired video file path, or to '0' for live camera stream.
 
 
-Next, change the IP address in:
 
-```uri = "ws://192.168.1.113:8000/video"``` 
+Next, change the IP address in: ```uri = "ws://192.168.1.113:8000/video"``` to the IP address of the Nano.
 
-to the IP address of the Nano.
 
-Finally, open command prompt on the client device and execute the following:
 
-```python clientSide2.py```
+Finally, open command prompt on the client device and execute: ```python clientSide2.py```
 
 # Example Results (currently blocked for confidentiality)
 
