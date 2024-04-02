@@ -27,7 +27,7 @@ Developed by Ultralytics
 ## Build Docker Container (Tested on Windows PC)
 If customised, with Docker installed, rebuild the Docker image by opening command prompt and executing:
 
-	```docker tag imageName:latest dockerName/imageName:latest```
+```docker tag imageName:latest dockerName/imageName:latest```
 
 where imageName is arbitrary and dockerName is the Docker username of the user.
 ## Push Docker Container (Tested on Windows PC)
