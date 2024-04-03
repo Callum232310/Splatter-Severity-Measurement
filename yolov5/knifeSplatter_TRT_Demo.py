@@ -21,8 +21,15 @@ import time
 import tensorrt as trt
 import pycuda.driver as cuda
 import tensorflow as tf
+import argparse
 
 TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+
+cuda.init()
+
+
+
+
 
 
 def profile_section(start_time, section_name=""): # This function is used for timing each step
@@ -378,66 +385,66 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     if width3 > 1920 * (scaleParameter / 100):
         width3 = 1920 * (scaleParameter / 100)
     
-    #fgmaskC = cv2.putText(fgmaskC, ("Scaling Factor: %.1f" %scalingFactor), (int(1400 * (scaleParameter / 100)), int(180 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)
-    #fgmaskC = cv2.putText(fgmaskC, ("MA Scaling Factor: %.1f" %maScalingFactor), (int(1400 * (scaleParameter / 100)), int(220 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)  
+    fgmaskC = cv2.putText(fgmaskC, ("Scaling Factor: %.1f" %scalingFactor), (int(1400 * (scaleParameter / 100)), int(180 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)
+    fgmaskC = cv2.putText(fgmaskC, ("MA Scaling Factor: %.1f" %maScalingFactor), (int(1400 * (scaleParameter / 100)), int(220 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)  
     
     
     # Final severity levels. putText is used for when there is visual output which is not suitable for efficient deployment
     if ((0 <= whitePixels <= amount0) and (0 <= splatterWidth <= width0)):
             splatterSeverity = 0
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 0"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 0"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
     elif ((amount0 <= whitePixels <= amount1) and (width0 <= splatterWidth <= width1)) or ((amount0 <= whitePixels <= amount1) and (0 <= splatterWidth <= width0)) or ((0 <= whitePixels <= amount0) and (width0 <= splatterWidth <= width1)):
             splatterSeverity = 1
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 1"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA) 
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 1"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA) 
     elif ((amount1 <= whitePixels <= amount2) and (width1 <= splatterWidth <= width2)) or ((amount0 <= whitePixels <= amount1) and (width1 <= splatterWidth <= width2)) or ((0 <= whitePixels <= amount0) and (width1 <= splatterWidth <= width2)) or ((amount1 <= whitePixels <= amount2) and (width0 <= splatterWidth <= width1)) or ((amount1 <= whitePixels <= amount2) and (0 <= splatterWidth <= width0)):
             splatterSeverity = 2
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 2"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 2"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
     elif ((amount2 <= whitePixels <= amount3) and (width2 <= splatterWidth <= width3)) or ((amount1 <= whitePixels <= amount2) and (width2 <= splatterWidth <= width3)) or ((amount0 <= whitePixels <= amount1) and (width2 <= splatterWidth <= width3)) or ((0 <= whitePixels <= amount0) and (width2 <= splatterWidth <= width3)) or ((amount2 <= whitePixels <= amount3) and (width1 <= splatterWidth <= width2)) or ((amount2 <= whitePixels <= amount3) and (width0 <= splatterWidth <= width1)) or ((amount2 <= whitePixels <= amount3) and (0 <= splatterWidth <= width0)):
             splatterSeverity = 3
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 3"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 3"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
     else:
             splatterSeverity = 4
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 4"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
-            #fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter Severity: 4"), (120,180), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
+            fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
             
 
     # Draw search area
-    #cv2.drawContours(fgmaskC, [improvedContour], 0, 155, 3)
+    cv2.drawContours(fgmaskC, [improvedContour], 0, 155, 3)
     
     # Convert mask to RGB
-    #fgmaskRGB = cv2.cvtColor(fgmaskC,cv2.COLOR_GRAY2RGB)
+    fgmaskRGB = cv2.cvtColor(fgmaskC,cv2.COLOR_GRAY2RGB)
     
-    #Draw bounding boxes on visual output
-    #cv2.rectangle(fgmaskRGB, (int(knifeFace1_xmin), int(knifeFace1_ymin)), (int(knifeFace1_xmax), int(knifeFace1_ymax)), (0,0,255), 1)
-    #fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace1_xmin) + 10,int(knifeFace1_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
-    #cv2.rectangle(fgmaskRGB, (int(knifeFace2_xmin), int(knifeFace2_ymin)), (int(knifeFace2_xmax), int(knifeFace2_ymax)), (0,0,255), 1)
-    #fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace2_xmin) + 10,int(knifeFace2_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+    # Draw bounding boxes on visual output
+    cv2.rectangle(fgmaskRGB, (int(knifeFace1_xmin), int(knifeFace1_ymin)), (int(knifeFace1_xmax), int(knifeFace1_ymax)), (0,0,255), 1)
+    fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace1_xmin) + 10,int(knifeFace1_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+    cv2.rectangle(fgmaskRGB, (int(knifeFace2_xmin), int(knifeFace2_ymin)), (int(knifeFace2_xmax), int(knifeFace2_ymax)), (0,0,255), 1)
+    fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace2_xmin) + 10,int(knifeFace2_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
     
     
     # Draw underside bounding boxes on visual output
-    #if undersideExists == 1:
-        #cv2.rectangle(fgmaskRGB, (int(knifeUnderside1['x_min']), int(knifeUnderside1['y_min'])), (int(knifeUnderside1['x_max']), int(knifeUnderside1['y_max'])), (0,0,255), 1)
-        #fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside1['x_min']) + 10,int(knifeUnderside1['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)        
-        #cv2.rectangle(fgmaskRGB, (int(knifeUnderside2['x_min']), int(knifeUnderside2['y_min'])), (int(knifeUnderside2['x_max']), int(knifeUnderside2['y_max'])), (0,0,255), 1)
-        #fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside2['x_min']) + 10,int(knifeUnderside2['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)    
+    if undersideExists == 1:
+        cv2.rectangle(fgmaskRGB, (int(knifeUnderside1['x_min']), int(knifeUnderside1['y_min'])), (int(knifeUnderside1['x_max']), int(knifeUnderside1['y_max'])), (0,0,255), 1)
+        fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside1['x_min']) + 10,int(knifeUnderside1['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)        
+        cv2.rectangle(fgmaskRGB, (int(knifeUnderside2['x_min']), int(knifeUnderside2['y_min'])), (int(knifeUnderside2['x_max']), int(knifeUnderside2['y_max'])), (0,0,255), 1)
+        fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside2['x_min']) + 10,int(knifeUnderside2['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)    
     
     # Colour the mask for clarity and superimpose it on the original frame
-    #fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 255)] = (255,0,255)
-    #fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 155)] = (0,0,255)
-    #fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 200)] = (0,255,0)
+    fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 255)] = (255,0,255)
+    fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 155)] = (0,0,255)
+    fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 200)] = (0,255,0)
  
-    #src1 = fgmaskRGB
-    #src2 = frame
-    #dst = cv2.addWeighted(src1, 0.5, src2, 0.5, 0)
+    src1 = fgmaskRGB
+    src2 = frame
+    dst = cv2.addWeighted(src1, 0.5, src2, 0.5, 0)
 
     endTime = time.time()
     frameTime = endTime - startTime
@@ -451,11 +458,14 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     
     #print("%.2f frames per second" %avgFPS)
     
+    #cv2.imshow('Result', dst)
+    #cv2.waitKey(1)
+    
     print("splatterSeverity: %d, frameTime: %.2f" %(splatterSeverity, frameTime))
 
     #profile_section(start, "POSTPROCESS END")
     
-    return splatterSeverity
+    return splatterSeverity, dst
 
 
 def process_frame(frame, model, fgbgC, context, bindings, inputs, outputs, stream,
@@ -470,12 +480,81 @@ def process_frame(frame, model, fgbgC, context, bindings, inputs, outputs, strea
     
     inferenceResults = infer(context, bindings, inputs, outputs, stream)
     
-    splatterSeverity = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, 
+    splatterSeverity, dst = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, 
                                         scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter,
                                         cThreshParameter, startTime)
     
     
     #profile_section(start, "INFERENCE END")
     
-    return splatterSeverity 
+    return splatterSeverity, dst 
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run inference on a video file with a TensorRT optimized model.")
+    parser.add_argument('--model', type=str, required=True, help='Path to the TensorRT engine file.')
+    parser.add_argument('--source', type=str, required=True, help='Path to the video file to process.')
+    args = parser.parse_args()
+    return args
+
+
+def main():
+    # Inputs
+    args = parse_args()
+    video_path = args.source
+    engine_path = args.model
+
+    # Parameters
+    scaleParameter = 100
+    eKernelParameter = 2
+    cThreshParameter = 100
+
+    # Load the TensorRT engine
+    engine = load_engine(engine_path)
+    context = engine.create_execution_context()
+
+    inputs, outputs, bindings, stream = allocate_buffers(engine)
+
+    # Initialize the background subtractor
+    fgbgC = cv2.createBackgroundSubtractorMOG2()
+
+    # Video capture
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        return
+
+    airKnifePosCount = 0
+    airKnifePoss = []
+    scalingFactors = []
+    scalingFactorCount = 0
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break  # No more frames or error
+
+            # Preprocess the frame
+            resized_frame, startTime = preprocess(frame, scaleParameter)
+            
+            # Copy preprocessed frame to input buffer
+            np.copyto(inputs[0]['host'], np.ravel(resized_frame))
+
+            # Inference
+            inferenceResults = infer(context, bindings, inputs, outputs, stream, resized_frame.shape)
+
+            # Postprocess and get results
+            splatterSeverity, dst = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime)
+
+            # Show result
+            cv2.imshow('Result', dst)
+            if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
+                break
+
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+
+if __name__ == '__main__':
+    main()
