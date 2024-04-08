@@ -87,11 +87,16 @@ async def video_stream(websocket: WebSocket):
         fgbgC = cv2.bgsegm.createBackgroundSubtractorCNT() #GOOD
         
         profile_api_section(start, "BGSEGM")
-        
+               
+        # Initialise some variables
         airKnifePosCount = 0
         airKnifePoss = []
-        scalingFactors = []
+        maAirKnifePos = 0
+        
         scalingFactorCount = 0
+        scalingFactors = []
+        maScalingFactor = 1.0
+
         startTime = time.time()
   
         while True:
@@ -136,9 +141,7 @@ async def video_stream(websocket: WebSocket):
                 start = time.time()
                 
                 # Finish the rest of the processing such as BGS and calculating results
-                splatterSeverity = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, 
-                                                    scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter,
-                                                    cThreshParameter, startTime)
+                splatterSeverity, airKnifePosCount, airKnifePoss, maAirKnifePos, scalingFactorCount, scalingFactors, maScalingFactor = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime, maAirKnifePos, maScalingFactor)
                 
                 profile_api_section(start, "POSTPROCESS FRAME")
                 

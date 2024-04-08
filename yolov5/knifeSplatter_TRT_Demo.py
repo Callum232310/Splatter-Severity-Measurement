@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Script Name: knifeSplatter_Final_Deployment.py
+Script Name: knifeSplatter_TRT_Demo.py
 
-Description: This script is the YOLOv5 + background subtraction splatter model optimised with TensorRT. This script will be utilised on the inference device by the API when the client-side streams video across the network.
+Description: This script is for demonstration of the YOLOv5 + background subtraction splatter model optimised with TensorRT.
 
 Original Author: Callum O'Donovan
 
-Original Creation Date: December 6th 2023
+Original Creation Date: March 28th 2024
 
 Email: callumodonovan2310@gmail.com
   
@@ -19,25 +19,31 @@ import numpy as np
 import cv2
 import time
 import tensorrt as trt
+import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorflow as tf
 import argparse
 
-TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+TRT_LOGGER = trt.Logger(trt.Logger.ERROR)
 
 cuda.init()
 
-
-
-
-
-
-def profile_section(start_time, section_name=""): # This function is used for timing each step
+def profile_section(start_time, section_name=""): # Time each step
     end_time = time.time()
     print(f"{section_name} took {(end_time - start_time) * 1000:.2f} ms")
 
 
-
+def convert_to_corners(detections): # Converts detections from (x_center, y_center, width, height) to (x_min, y_min, x_max, y_max)
+    converted = []
+    for det in detections:
+        x_center, y_center, width, height = det[:4]
+        x_min = x_center - (width / 2)
+        y_min = y_center - (height / 2)
+        x_max = x_center + (width / 2)
+        y_max = y_center + (height / 2)
+        converted.append([x_min, y_min, x_max, y_max] + list(det[4:]))
+    return np.array(converted)
+    
 def tf_nms(detections_filtered, iou_threshold=0.5, score_threshold=0.0000001, max_detections=200): # Non-maximum suppression using tensorflow (uses GPU)
 
     #start = time.time()
@@ -72,25 +78,23 @@ def tf_nms(detections_filtered, iou_threshold=0.5, score_threshold=0.0000001, ma
     
     return selected_detections
 
+def load_engine(engine_path): #Load the TensorRT engine file and deserialise it
 
-def load_engine(engine_path):
+    runtime = trt.Runtime(TRT_LOGGER)
     
-    #start = time.time()
-    #print("TESTING LOAD ENGINE")
+    # Open the file and read it
+    with open(engine_path, 'rb') as f:
+        engine_data = f.read()
+        
+    engine = runtime.deserialize_cuda_engine(engine_data)
     
-    with open(engine_path, 'rb') as f, trt.Runtime(TRT_LOGGER) as runtime:
-        
-        #profile_section(start, "LOAD ENGINE")
-        
-        return runtime.deserialize_cuda_engine(f.read())
+    return engine
 
 
 def allocate_buffers(engine): # Allocate host and device buffers  
  
     #start = time.time()
-    
-    #print("TESTING BUFFERS")
-    
+       
     inputs = []
     outputs = []
     bindings = []
@@ -117,40 +121,9 @@ def allocate_buffers(engine): # Allocate host and device buffers
     return inputs, outputs, bindings, stream
 
 
-def preprocess(frame, scaleParameter):
+def infer(context, bindings, inputs, outputs, stream): #Perform YOLOv5 inference
     
     #start = time.time()
-    
-    #print("TESTING PREPROCESS")
-    
-    startTime = time.time()
-    
-    frame_height, frame_width = frame.shape[:2]
-    
-    #center = (frame_width // 2, frame_height // 2)
-    
-    # Rotate frame if needed
-    #rotation_matrix = cv2.getRotationMatrix2D(center, -angle_degrees, 1.0)
-    #rotated_frame = cv2.warpAffine(frame, rotation_matrix, (frame_width, frame_height))
-    
-    # Resize frame if needed
-    # width = int(rotated_frame.shape[1] * scaleParameter / 100)
-    # height = int(rotated_frame.shape[0] * scaleParameter / 100)
-    
-    width = int(frame.shape[1] * scaleParameter / 100)
-    height = int(frame.shape[0] * scaleParameter / 100)
-    resized_frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
-    
-    #profile_section(start, "PREPROCESS")
-    
-    return resized_frame, startTime
-
-
-def infer(context, bindings, inputs, outputs, stream):
-    
-    #start = time.time()
-    
-    #print("TESTING INFER")
     
     # Transfer input data to the GPU
     [cuda.memcpy_htod_async(inp['device'], inp['host'], stream) for inp in inputs]
@@ -167,35 +140,78 @@ def infer(context, bindings, inputs, outputs, stream):
     # Return only the host outputs
     all_outputs = [out['host'] for out in outputs]
     
-    for output in all_outputs:
-        print(output.shape)
+    #for output in all_outputs:
+        #print(output.shape)
 
     #profile_section(start, "INFER")
     
     return outputs[0]['host']
+   
+def preprocess(frame, target_size=(1088, 1920), scaleParameter=100): #Preprocess data ready for inference
 
-def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime):
+    startTime = time.time()
+    
+    # Resize frame to target width, maintaining aspect ratio
+    h, w = frame.shape[:2]
+    scaling_factor = target_size[1] / w
+    new_size = (int(w * scaling_factor * scaleParameter / 100), int(h * scaling_factor * scaleParameter / 100))
+    frame_resized = cv2.resize(frame, new_size, interpolation=cv2.INTER_LINEAR)
+    
+    # Pad the resized frame to the target height if necessary
+    delta_h = target_size[0] - new_size[1]
+    top, bottom = delta_h // 2, delta_h - (delta_h // 2)
+    frame_padded = cv2.copyMakeBorder(frame_resized, top, bottom, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
+    # Convert BGR to RGB
+    frame_rgb = cv2.cvtColor(frame_padded, cv2.COLOR_BGR2RGB)
+
+    # Normalise pixel values
+    frame_normalized = frame_rgb / 255.0
+
+    # HWC to CHW format for TensorRT model
+    frame_chw = np.transpose(frame_normalized, (2, 0, 1))
+
+    # Add batch dimension
+    frame_batch = frame_chw[np.newaxis, ...].astype(np.float32)
+
+    return frame_batch, startTime
+
+def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime, maAirKnifePos, maScalingFactor): #Postprocess YOLOv5 inference and apply BGS
     
     #start = time.time()
     
-    
-    detections = inferenceResults.reshape(-1, 7)  # Reshape from 176400 to 29400,6
-    
-    
-    class_probability_threshold = 0.9
-    mask = np.maximum(detections[:, 5], detections[:, 6]) > class_probability_threshold
-    filtered_detections = detections[mask]
-    
-    # Sort by confidence
-    indices_sorted = np.argsort(-filtered_detections[:, 4])  # Negating for descending order
-    detections_filtered = filtered_detections[indices_sorted]
-    
-    # Perform tensorflow-gpu NMS
-    detections_nms = tf_nms(detections_filtered, iou_threshold=0.5, score_threshold=0.000001)
-
-    # Initialize variables to None to avoid errors
+    #Initialise some variables
     knifeFace1 = knifeFace2 = knifeUnderside1 = knifeUnderside2 = None
-  
+    knifeFace1_xmin = knifeFace1_ymin = knifeFace1_xmax = knifeFace1_ymax = None
+    knifeFace2_xmin = knifeFace2_ymin = knifeFace2_xmax = knifeFace2_ymax = None
+    knifeUnderside1_xmin = knifeUnderside1_ymin = knifeUnderside1_xmax = knifeUnderside1_ymax = None
+    knifeUnderside2_xmin = knifeUnderside2_ymin = knifeUnderside2_xmax = knifeUnderside2_ymax = None
+
+    detections = inferenceResults.reshape(-1, 7)  # Reshape so each row is one detection
+    
+    #Filter out detections by confidence first
+    confidence_threshold = 0.01
+    confidence_mask = detections[:, 4] > confidence_threshold
+    filtered_detections = detections[confidence_mask]
+    filtered_detections = convert_to_corners(filtered_detections)
+    
+    # Separate detections by class probability
+    class1_mask = filtered_detections[:, 5] > filtered_detections[:, 6]
+    class2_mask = ~class1_mask
+
+    class1_detections = filtered_detections[class1_mask]
+    class2_detections = filtered_detections[class2_mask]
+    
+    # Apply tf_nms separately for each class
+    class1_nms_detections = tf_nms(class1_detections, iou_threshold=0.5, score_threshold=0.001, max_detections=200)
+    class2_nms_detections = tf_nms(class2_detections, iou_threshold=0.5, score_threshold=0.3, max_detections=200)
+
+    # Combining the NMS results of both classes
+    if len(class2_nms_detections) > 0:
+        detections_nms = np.vstack([class1_nms_detections, class2_nms_detections])
+    else:
+        detections_nms = class1_nms_detections
+    
     # Check for the existence of the underside
     undersideExists = np.any(detections_nms[:, 6] > detections_nms[:, 5])
     
@@ -203,31 +219,33 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     if undersideExists:
         relevant_detections = detections_nms
     else:
-        # If underside not present, ignore underside detections because they will definitely be wrong
         relevant_detections = detections_nms[detections_nms[:, 5] > detections_nms[:, 6]]
- 
-      # Relevant detections to calculate the air knives' positions
+      
+    # Select best 2 detections of each class
+    knife_faces = relevant_detections[relevant_detections[:, 5] > relevant_detections[:, 6]][:2]
+    undersides = relevant_detections[relevant_detections[:, 5] < relevant_detections[:, 6]][:2]
+    
+    # Relevant detections to calculate the air knives' positions
     if len(relevant_detections) > 0:
         airKnifePos = np.max(relevant_detections[:, 3])  # y_max
         airKnifePoss.append(airKnifePos)
         airKnifePosCount += 1
+        
+        # Calculate moving average of the last 10 airKnifePos values
         if 0 < airKnifePosCount < 10:
             maAirKnifePos = airKnifePoss[0]
+        
         elif airKnifePosCount % 10 == 0:
-            maAirKnifePos = sum(airKnifePoss[-10:]) / 10
+            maAirKnifePos = sum(airKnifePoss[-10:]) / 10            
         else:
             maAirKnifePos = maAirKnifePos
-            
-    # Select best 2 detections of each class
-    knife_faces = relevant_detections[relevant_detections[:, 5] > relevant_detections[:, 6]][:2]
-    undersides = relevant_detections[relevant_detections[:, 6] > relevant_detections[:, 5]][:2]
 
-    # Check if knifeface detections exist
+
+    # Isolate individual detections
     if knife_faces is not None and len(knife_faces) > 0:
-        knifeFace1 = knife_faces[0]  # Isolate desired detections
+        knifeFace1 = knife_faces[0]  
         knifeFace2 = knife_faces[1] if len(knife_faces) > 1 else None
         
-    # Check if underside detections exist
     if undersideExists and undersides is not None and len(undersides) > 0:
         knifeUnderside1 = undersides[0]  
         knifeUnderside2 = undersides[1] if len(undersides) > 1 else None
@@ -245,7 +263,6 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
         knifeFace2_xmax = knifeFace2[2]
         knifeFace2_ymax = knifeFace2[3] 
         
-
      # Calculate combined area of both knifeFace bounding boxes in pixels
     if knifeFace1 is not None and knifeFace2 is not None:
         bboxCombArea = ((knifeFace1[2] - knifeFace1[0]) * (knifeFace1[3] - knifeFace1[1])) + \
@@ -255,6 +272,7 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
         scalingFactor = round(bboxCombArea / (80000 * (scaleParameter / 100) * (scaleParameter / 100)), 1)
         scalingFactors.append(scalingFactor)
         scalingFactorCount += 1
+        
         if 0 < scalingFactorCount < 25000:
             maScalingFactor = scalingFactors[0]
         elif scalingFactorCount % 25000 == 0:
@@ -265,57 +283,51 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     # Apply BGS
     fgmaskC = fgbgC.apply(frame)
     
+    # Apply erosion
     kernel = np.ones((int(eKernelParameter),int(eKernelParameter)), np.uint8)
     fgmaskC = cv2.erode(fgmaskC, kernel) 
+    
+    
     fgmask2 = fgmaskC.copy()
     fgmask2 = np.zeros_like(fgmask2)
-    fgmask3 = fgmask2.copy()
-
-    pContourSize = []
-    contourSize = []
-    pContourPosition = []
-    contourPosition = []
-    pM = []
-    M = []
-    pcX = []
-    pcY = []
-    cX = []
-    cY = []
+    
     Q= 0
     
-    # Find outer and inner edges of bounding boxes to create refined splatter region boundary
-    if knifeFace1 is not None and knifeFace2 is not None:
-        leftMostSide = np.min([knifeFace1_xmin,knifeFace1_xmax, knifeFace2_xmin, knifeFace2_xmax])
-        rightMostSide = np.max([knifeFace1_xmin,knifeFace1_xmax, knifeFace2_xmin, knifeFace2_xmax])
-        
+    
+    # Create a list of the variables
+    values = [knifeFace1_xmin, knifeFace1_xmax, knifeFace2_xmin, knifeFace2_xmax]
+
+    # Filter out None values
+    filtered_values = [value for value in values if value is not None]
+
+    # Calcualte min and max x values
+    if filtered_values:
+        leftMostSide = np.min(filtered_values)
+        rightMostSide = np.max(filtered_values)
     else:
-        print("NO DETECTIONS")
-            
+        leftMostSide = 0
+        rightMostSide = frame.shape[1]
+   
     # Define splatter region points
     if undersideExists == 0:         
-        i1 = (0, int(maAirKnifePos+(28*maScalingFactor)))
-        i2 = (leftMostSide+25, int(maAirKnifePos+(25*maScalingFactor)))
-        i3 = (leftMostSide+25, int(maAirKnifePos))
-        i4 = (rightMostSide-25, int(maAirKnifePos))
-        i5 = (rightMostSide-25, int(maAirKnifePos+(25*maScalingFactor)))
-        i6 = (frame.shape[1], int(maAirKnifePos+(25*maScalingFactor)))
+        i1 = (0, int(maAirKnifePos+(28*maScalingFactor))+40)
+        i2 = (leftMostSide+45, int(maAirKnifePos+(28*maScalingFactor))+40)
+        i3 = (leftMostSide+45, int(maAirKnifePos)+40)
+        i4 = (rightMostSide-45, int(maAirKnifePos)+40)
+        i5 = (rightMostSide-45, int(maAirKnifePos+(28*maScalingFactor))+40)
+        i6 = (frame.shape[1], int(maAirKnifePos+(28*maScalingFactor))+40)
         i7 = (frame.shape[1], frame.shape[0])
         i8 = (0, frame.shape[0])
         
         
         improvedContour = np.array([i1,i2,i3,i4,i5,i6,i7,i8], dtype=np.int32)
-        
-        
 
     else:
-        i1 = (0, int(maAirKnifePos+(25*maScalingFactor)))
-        i2 = (frame.shape[1], int(maAirKnifePos+(25*maScalingFactor)))
+        i1 = (0, int(maAirKnifePos+(23*maScalingFactor))+40)
+        i2 = (frame.shape[1], int(maAirKnifePos+(23*maScalingFactor))+40)
         i3 = (frame.shape[1], frame.shape[0])
         i4 = (0, frame.shape[0])     
         improvedContour = np.array([i1,i2,i3,i4])
-    
-    improvedContourFlipped = [[y, x] for x, y in improvedContour]
-    
     
     # Define splatterArea (splatter region)
     cv2.drawContours(fgmask2, [improvedContour], -1, 255, -3)
@@ -326,7 +338,6 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     splatterWidth = 0
     splatterSeverity = 0
     
-   
     # Check that it is not one of the initial frames (CNT takes 10-20 frames to initialise where it segments the whole image)
     if whitePixels < (1500000 * (scaleParameter / 100)):
         
@@ -338,41 +349,61 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
         leftSplatter = 0
         rightSplatter = 0
         
-        
+    
         fgmaskC = cv2.bitwise_and(fgmaskC, fgmask2)
         contours, hierarchy = cv2.findContours(fgmaskC,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         
              
         # Find leftmost and rightmost points of all contours to calculate splatter width from leftmost point and rightmost point of segmentation mask
         for c in contours:
-
-            if len(c[:,0,0]) > cThreshParameter*(scaleParameter/100):
                 
-            #cv2.drawContours(fgmask[300:,:], c, -1, color=(155), thickness=2)
-            
+            if len(c[:,0,0]) > 100*(scaleParameter/100):
                 maxXc = np.max(c[:,0,0])
                 minXc = np.min(c[:,0,0])
+                
                 if maxXc > maxX:
                     maxX = maxXc
+                    
                 if (minX == 0 and minXc != 0) or minXc < minX:
                     minX = minXc
+                    
                 leftSplatter = (frame.shape[1]/2) - minX
                 rightSplatter =  maxX - (frame.shape[1]/2)
-                      
+                     
                 if leftSplatter < 0:
                     splatterWidth = rightSplatter
+                    
                 if rightSplatter < 0:
                     splatterWidth = leftSplatter
+                    
                 else:
                     splatterWidth = leftSplatter+rightSplatter
+                    
                 Q += 1
-                previousContours = contours    
                 
+                previousContours = contours 
+                     
+                
+        # Draw lines showing splatter width. Used for demonstratin purposes but not suitable for efficient deployment
+        if undersideExists == 0:
+            
+            if (leftMostSide + 45) < minX < (rightMostSide -45):
+                cv2.line(fgmaskC, (int(minX), int(maAirKnifePos)+40), (minX, frame.shape[0]), (155), 2)
+            else:
+                cv2.line(fgmaskC, (int(minX), int(maAirKnifePos+(28*maScalingFactor))+40), (minX, frame.shape[0]), (155), 2)
+                
+            if (leftMostSide + 45) < maxX < (rightMostSide -45):
+                cv2.line(fgmaskC, (int(maxX), int(maAirKnifePos)+40), (maxX, frame.shape[0]), (155), 2)   
+            else:
+                cv2.line(fgmaskC, (int(maxX), int(maAirKnifePos+(28*maScalingFactor))+40), (maxX, frame.shape[0]), (155), 2) 
+                
+        else:
+            cv2.line(fgmaskC, (int(minX), int(maAirKnifePos+(23*maScalingFactor))+40), (minX, frame.shape[0]), (155), 2)
+            cv2.line(fgmaskC, (int(maxX), int(maAirKnifePos+(23*maScalingFactor))+40), (maxX, frame.shape[0]), (155), 2)              
+                         
     else:
         whitePixels = 0
         
-
-    
     # Set splatter severity level boundaries
     amount0 = 7500 * maScalingFactor * (scaleParameter / 100) * (scaleParameter / 100)
     amount1 = 15000 * maScalingFactor * (scaleParameter / 100) * (scaleParameter / 100)
@@ -387,7 +418,6 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
     
     fgmaskC = cv2.putText(fgmaskC, ("Scaling Factor: %.1f" %scalingFactor), (int(1400 * (scaleParameter / 100)), int(180 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)
     fgmaskC = cv2.putText(fgmaskC, ("MA Scaling Factor: %.1f" %maScalingFactor), (int(1400 * (scaleParameter / 100)), int(220 * (scaleParameter / 100))), cv2.FONT_HERSHEY_SIMPLEX, (scaleParameter/100), (255,0,0), 1, cv2.LINE_AA)  
-    
     
     # Final severity levels. putText is used for when there is visual output which is not suitable for efficient deployment
     if ((0 <= whitePixels <= amount0) and (0 <= splatterWidth <= width0)):
@@ -416,27 +446,29 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
             fgmaskC = cv2.putText(fgmaskC, ("Splatter quantity: %d" %whitePixels), (120,220), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
             fgmaskC = cv2.putText(fgmaskC, ("Splatter width: %d" %splatterWidth), (120,260), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0), 1, cv2.LINE_AA)
             
-
     # Draw search area
     cv2.drawContours(fgmaskC, [improvedContour], 0, 155, 3)
-    
+
     # Convert mask to RGB
     fgmaskRGB = cv2.cvtColor(fgmaskC,cv2.COLOR_GRAY2RGB)
-    
-    # Draw bounding boxes on visual output
-    cv2.rectangle(fgmaskRGB, (int(knifeFace1_xmin), int(knifeFace1_ymin)), (int(knifeFace1_xmax), int(knifeFace1_ymax)), (0,0,255), 1)
-    fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace1_xmin) + 10,int(knifeFace1_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
-    cv2.rectangle(fgmaskRGB, (int(knifeFace2_xmin), int(knifeFace2_ymin)), (int(knifeFace2_xmax), int(knifeFace2_ymax)), (0,0,255), 1)
-    fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace2_xmin) + 10,int(knifeFace2_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
-    
-    
-    # Draw underside bounding boxes on visual output
-    if undersideExists == 1:
-        cv2.rectangle(fgmaskRGB, (int(knifeUnderside1['x_min']), int(knifeUnderside1['y_min'])), (int(knifeUnderside1['x_max']), int(knifeUnderside1['y_max'])), (0,0,255), 1)
-        fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside1['x_min']) + 10,int(knifeUnderside1['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)        
-        cv2.rectangle(fgmaskRGB, (int(knifeUnderside2['x_min']), int(knifeUnderside2['y_min'])), (int(knifeUnderside2['x_max']), int(knifeUnderside2['y_max'])), (0,0,255), 1)
-        fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside2['x_min']) + 10,int(knifeUnderside2['y_min']) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)    
-    
+
+    # Draw bounding boxes on visual output. As mentioned, this is for demonstration and not deployment
+    if knifeFace1 is not None:
+        cv2.rectangle(fgmaskRGB, (int(knifeFace1_xmin), int(knifeFace1_ymin)), (int(knifeFace1_xmax), int(knifeFace1_ymax)), (0,0,255), 1)
+        fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace1_xmin) + 10,int(knifeFace1_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+        
+    if knifeFace2 is not None:
+        cv2.rectangle(fgmaskRGB, (int(knifeFace2_xmin), int(knifeFace2_ymin)), (int(knifeFace2_xmax), int(knifeFace2_ymax)), (0,0,255), 1)
+        fgmask = cv2.putText(fgmaskRGB, ("Knife Face"), (int(knifeFace2_xmin) + 10,int(knifeFace2_ymin) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+        
+    if knifeUnderside1 is not None:
+         cv2.rectangle(fgmaskRGB, (int(knifeUnderside1[0]), int(knifeUnderside1[1])), (int(knifeUnderside1[2]), int(knifeUnderside1[3])), (0,0,255), 1)
+         fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside1[0]) + 10,int(knifeUnderside1[1]) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+
+    if knifeUnderside2 is not None:
+         cv2.rectangle(fgmaskRGB, (int(knifeUnderside2[0]), int(knifeUnderside2[1])), (int(knifeUnderside2[2]), int(knifeUnderside2[3])), (0,0,255), 1)
+         fgmask = cv2.putText(fgmaskRGB, ("Knife Underside"), (int(knifeUnderside2[0]) + 10,int(knifeUnderside2[1]) + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.75*(scaleParameter/100), (0,0,255), 1, cv2.LINE_AA)
+
     # Colour the mask for clarity and superimpose it on the original frame
     fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 255)] = (255,0,255)
     fgmaskRGB[np.where(fgmaskRGB[:,:,0] == 155)] = (0,0,255)
@@ -448,50 +480,15 @@ def postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss
 
     endTime = time.time()
     frameTime = endTime - startTime
- 
-    
-    #avgInfTime = np.mean(infTimes)
-    
-    #avgFPS = 1/avgInfTime
-    
-    #print("%.2f seconds per frame" %avgInfTime)
-    
-    #print("%.2f frames per second" %avgFPS)
-    
-    #cv2.imshow('Result', dst)
-    #cv2.waitKey(1)
-    
+     
     print("splatterSeverity: %d, frameTime: %.2f" %(splatterSeverity, frameTime))
 
     #profile_section(start, "POSTPROCESS END")
     
-    return splatterSeverity, dst
-
-
-def process_frame(frame, model, fgbgC, context, bindings, inputs, outputs, stream,
-                  scaleParameter, eKernelParameter, cThreshParameter, results, airKnifePosCount,
-                  airKnifePoss, scalingFactors, scalingFactorCount):
-    
-    #start = time.time()
-    
-    resized_frame, startTime = preprocess(frame, scaleParameter)
-    
-    np.copyto(inputs[0]['host'], np.ravel(resized_frame))
-    
-    inferenceResults = infer(context, bindings, inputs, outputs, stream)
-    
-    splatterSeverity, dst = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, 
-                                        scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter,
-                                        cThreshParameter, startTime)
-    
-    
-    #profile_section(start, "INFERENCE END")
-    
-    return splatterSeverity, dst 
-
+    return splatterSeverity, dst, airKnifePosCount, airKnifePoss, maAirKnifePos, scalingFactorCount, scalingFactors, maScalingFactor
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run inference on a video file with a TensorRT optimized model.")
+    parser = argparse.ArgumentParser(description="Run inference on a video file with a TensorRT optimised model.")
     parser.add_argument('--model', type=str, required=True, help='Path to the TensorRT engine file.')
     parser.add_argument('--source', type=str, required=True, help='Path to the video file to process.')
     args = parser.parse_args()
@@ -499,10 +496,22 @@ def parse_args():
 
 
 def main():
+    
     # Inputs
     args = parse_args()
     video_path = args.source
     engine_path = args.model
+    
+    # Initialise some variables
+    airKnifePosCount = 0
+    airKnifePoss = []
+    maAirKnifePos = 0
+    
+    scalingFactorCount = 0
+    scalingFactors = []
+    maScalingFactor = 1.0
+    
+    frameNo = 0
 
     # Parameters
     scaleParameter = 100
@@ -512,10 +521,11 @@ def main():
     # Load the TensorRT engine
     engine = load_engine(engine_path)
     context = engine.create_execution_context()
-
+    
+    # Allocate buffers
     inputs, outputs, bindings, stream = allocate_buffers(engine)
 
-    # Initialize the background subtractor
+    # Initialise the background subtractor
     fgbgC = cv2.createBackgroundSubtractorMOG2()
 
     # Video capture
@@ -524,33 +534,38 @@ def main():
         print("Error: Could not open video.")
         return
 
-    airKnifePosCount = 0
-    airKnifePoss = []
-    scalingFactors = []
-    scalingFactorCount = 0
-
     try:
         while True:
             ret, frame = cap.read()
             if not ret:
-                break  # No more frames or error
-
-            # Preprocess the frame
-            resized_frame, startTime = preprocess(frame, scaleParameter)
+                break 
+                
+	        # Rotate frame if necessary (slow)
+            angle_degrees = 4
+            h, w = frame.shape[:2]
+            center = (w // 2, h // 2)
+            rotation_matrix = cv2.getRotationMatrix2D(center, -angle_degrees, 1.0)
+            rotated_frame = cv2.warpAffine(frame, rotation_matrix, (w, h))
+            frame = rotated_frame
+	    
+	        # Preprocessing to ensure correct input size
+            resized_frame, startTime = preprocess(frame, target_size=(1088, 1920), scaleParameter=100)
             
             # Copy preprocessed frame to input buffer
             np.copyto(inputs[0]['host'], np.ravel(resized_frame))
 
             # Inference
-            inferenceResults = infer(context, bindings, inputs, outputs, stream, resized_frame.shape)
+            inferenceResults = infer(context, bindings, inputs, outputs, stream)
 
             # Postprocess and get results
-            splatterSeverity, dst = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime)
+            splatterSeverity, dst, airKnifePosCount, airKnifePoss, maAirKnifePos, scalingFactorCount, scalingFactors, maScalingFactor = postprocess(inferenceResults, airKnifePosCount, scaleParameter, airKnifePoss, scalingFactors, scalingFactorCount, fgbgC, frame, eKernelParameter, cThreshParameter, startTime, maAirKnifePos, maScalingFactor)
+            
+            frameNo +=1
+            print(frameNo)
 
             # Show result
             cv2.imshow('Result', dst)
-            if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to quit
-                break
+            cv2.waitKey(1)
 
     finally:
         cap.release()
