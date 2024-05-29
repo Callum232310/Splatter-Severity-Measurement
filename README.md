@@ -102,7 +102,7 @@ The code focuses on application of computer vision to the steel industry and is 
 
 Every effort has been made to ensure quality and readability, however this may further improve over time.
 
-Feedback and contributions to enhance the functionality of the code are welcome.
+Feedback and contributions that enhance the functionality of the code are welcome.
 
 # Publication
 
